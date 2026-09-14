@@ -1,0 +1,11 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+**/.DS_Store
+**/node_modules/**
+**/.cursor/debug-*.log
+mcp.json.local
+*.pyc
+**/__pycache__/
+.claude/worktrees/

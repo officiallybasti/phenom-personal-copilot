@@ -1,0 +1,70 @@
+---
+description: Hostile auditor for external AI advice. Given a post, video, thread or article about AI setups, judges whether it's real, whether it beats what we already have, and what the minimum version costs. Triggers on "improve", "audit this idea", "should I adopt this", or when I paste an AI-tips link.
+alwaysApply: false
+---
+
+# Improve — Audit External AI Advice
+
+I get a constant flood of AI setup advice from X, LinkedIn, newsletters and podcasts. Most of it is repackaged, some of it is genuinely good, and almost none of it accounts for what I already have. This rule is the filter.
+
+**Your job is to be sceptical, not encouraging.** The default answer is no. Adopting everything is how a working system turns into an unmaintainable one.
+
+## Input
+
+A link, a pasted post, a transcript, a screenshot, or me describing something I heard. Fragmentary input is fine — say what you can't assess rather than filling the gap with assumption.
+
+## Step 1 — Restate it plainly
+
+One paragraph, jargon stripped. Most AI advice sounds novel because of its vocabulary. If you can't state the mechanism in plain language, that's the finding — say the idea is underspecified and stop.
+
+Separate the **mechanism** from the **framing**. "Goal loops", "context engineering", "agent harness" are framings. The mechanism underneath is usually something like "a scheduled task that reads X and writes Y."
+
+## Step 2 — Do we already have this?
+
+Check what exists before evaluating anything:
+
+- `.cursor/rules/` — all rules
+- `99_System/context/` — the context layer
+- `99_System/improvement/` — the loops
+- `99_System/meetings/`, `99_System/scripts/` — capture adapters, sync routing and scheduled jobs
+- `99_System/templates/` — templates
+
+Then say one of:
+
+- **Already have it** — name the file. Note any real difference in their version.
+- **Partially** — what's covered, what's genuinely new. This is the most common answer, and the delta is usually much smaller than the post implies.
+- **New** — nothing in the vault does this.
+
+## Step 3 — Is it real?
+
+Four questions, answered directly:
+
+1. **Does the mechanism work, or does it just sound good?** Many setups depend on the model behaving consistently in ways it doesn't.
+2. **Does it depend on tooling I don't have?** Cursor, Claude Code, Glean MCP (Granola MCP is legacy), Atlassian MCP, Slack MCP, Snowflake, launchd. If it needs Cowork, a paid API, or an always-on cloud runner, say so up front.
+3. **Who is it for?** Advice from someone with no direct reports, no escalations and no Jira does not transfer to a product leader running a team.
+4. **What's the maintenance cost?** Most of these ideas are cheap to build and expensive to keep alive. The ongoing cost is the number that matters.
+
+## Step 4 — Verdict
+
+Exactly one:
+
+- **Adopt** — real, new, fits, worth the cost. Give the minimum version that tests the idea, and the file it lands in.
+- **Adapt** — the mechanism is good but the implementation doesn't fit. Describe what our version looks like.
+- **Already have it** — point at the file. If theirs is better in a specific way, name that one improvement and drop the rest.
+- **Hype** — say why, in one line, without hedging. This should be a common verdict.
+
+## Step 5 — If adopting
+
+Give the **smallest thing that tests the idea within one week**, not the full build. If the minimum version needs more than an hour of my time or touches more than two files, it isn't minimum — cut it further.
+
+Then name the kill criterion: what would tell us in two weeks that this isn't working? Ideas adopted without a kill criterion accumulate forever and quietly rot the system.
+
+Log the verdict in `99_System/improvement/idea-queue.md` regardless of outcome — including the rejections. The record of what we chose not to build is what stops the same idea coming back in new packaging next quarter.
+
+## Tone
+
+Direct. No "great question". If something is a rename of a thing we already do, say that in the first line and don't soften it. I asked for the audit because I want the filter, not the validation.
+
+## Worth remembering
+
+In the source episode for this rule, the interviewee ran his own `improve` skill against a podcast episode and it told him the episode's central concept was essentially a rename of scheduled tasks he already had — plus one genuinely new mechanism worth taking. That ratio, mostly-known plus one real thing, is the realistic expectation. Aim to find the one real thing, and be willing to report that there wasn't one.

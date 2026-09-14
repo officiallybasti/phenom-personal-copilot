@@ -1,0 +1,18 @@
+---
+description: Inbox-first meeting flow and 5-day rule
+globs: ["00_Inbox/**", "90_Archives/Meetings/**", "**/Meeting*"]
+---
+
+# Inbox & Meetings
+
+When adding or syncing meeting notes:
+
+- **Inbox is flat:** `00_Inbox/Meetings/` has no subfolders. Unrouted meetings (last 5 days) land here. Routing: **`99_System/meetings/routing.json`** (see **`Meetings/meeting-sync.mdc`**).
+  - **1:1 with direct** → `05_Areas/People/Team/{Name}/`
+  - **Leader + customer/account** → stays in Inbox
+  - **Other leader meetings** → `05_Areas/People/Leaders/{folder}/`
+  - **Product team** (title keywords) → `05_Areas/Product Team/Meetings/`
+- **Ideas** → `00_Inbox/Ideas/`
+- **5-day rule:** Older Inbox meetings → `90_Archives/Meetings/`
+- **Consumed** notes move to a person/project folder or archive
+- **Extracted actions** → `01_Tasks/Tasks.md`

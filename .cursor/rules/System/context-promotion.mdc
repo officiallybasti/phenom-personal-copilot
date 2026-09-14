@@ -1,0 +1,27 @@
+---
+description: Promote @team facts from this vault to Phenom Product Copilot. Triggers on promote context, contribute context, push to shared repo, or weekly self-improvement step 5.
+alwaysApply: false
+---
+
+# Context promotion
+
+Facts that any Phenom PM needs belong in **Phenom Product Copilot**, not here.
+
+| Marker | Test |
+|---|---|
+| `@team` | Would a PM in another org slice need this with no extra explanation? |
+| `@personal` | Goals, voice, relationships, habits |
+| `@sensitive` | Performance, compensation, confidences, customer PII — never leaves |
+
+Default `@personal`. Never promote `[inferred]` or `[unconfirmed]`. Promote the durable lesson, not this week's incident. `05_Areas/People/` never promotes.
+
+## Steps
+
+1. Sweep `_promotion-queue.md` and recently tagged glossary entries.
+2. Filter: confirmed, durable, safe.
+3. Draft in Copilot house style. Get approval.
+4. Open a **PR** against `officiallybasti/phenom-product-copilot` — never push their main directly.
+5. Mark the queue with the PR link.
+6. `git pull` Copilot and report contradictions (shared wins).
+
+Weekly as part of self-improvement. Needs a named Copilot maintainer who actually merges PRs.

@@ -1,0 +1,143 @@
+{
+  "_readme": "Capture-source adapters for .cursor/rules/Meetings/meeting-sync.mdc. This file is the ONLY place a meeting-capture vendor is named. routing.json is deliberately vendor-free: it decides where a meeting goes, never where it came from. Swapping capture tools should mean editing this file and nothing else.",
+  "_confidence": "Anything named in a source's `unconfirmed` array is a guess, not a verified fact. Do not present it to a human as established, and do not silently proceed when a call using it fails — say which unconfirmed value you were relying on. See 99_System/context/README.md for the marker convention and 99_System/context/99-open-questions.md for the open items.",
+
+  "active_source": "glean",
+
+  "normalised_meeting": {
+    "_readme": "The shape every adapter must produce. The routing rules, the file template and the tracking file are all written against this and nothing else.",
+    "fields": {
+      "id": "Stable unique identifier, used as the dedupe key in backup_tracking.json. Must be stable across syncs.",
+      "title": "Meeting title, used by the routing priority table and the filename.",
+      "start": "Start datetime, local. Formats the YYYY-MM-DD_HHMM filename prefix and the Date line.",
+      "participants": "List of attendee names, used by the routing priority table.",
+      "summary": "Generated notes or summary. Rendered under '## Meeting Notes'.",
+      "transcript": "Full verbatim transcript. Rendered under '## Full Transcript'. May be empty.",
+      "link": "Optional permalink back to the source. Rendered at the bottom."
+    }
+  },
+
+  "sources": {
+    "glean": {
+      "status": "primary",
+      "since": "2026-09-13",
+      "_readme": "Glean meeting notes is the capture path as of 2026-09-13. The live sync uses Glean's remote MCP server. The previous sync was the local glean-scribe-extract.py cache script referenced by the old EOD agent; that script is no longer present. Glean transcribes locally from the desktop app across Meet, Teams, Zoom, Slack huddles and in-person, stores transcript plus metadata (never raw audio), and indexes the result as a first-class artefact. Docs: https://docs.glean.com/user-guide/assistant/meeting-notes/",
+
+      "mcp_server": {
+        "cursor": "glean_default",
+        "claude_code": "glean_default",
+        "_note": "Verified 2026-09-13. Cursor: glean_default in ~/.cursor/mcp.json. Claude Code: glean_default in user config ~/.claude.json, added against the same deployment URL. Claude Code still requires its one-time OAuth authentication before the headless digest can retrieve meetings."
+      },
+
+      "tools": {
+        "search": "search",
+        "read_document": "read_document",
+        "chat": "chat",
+        "_note": "These three are documented built-ins of Glean's default MCP server, alongside employee_search, user_activity, memory and memory_schema. Source: https://docs.glean.com/administration/platform/mcp/create-mcp-servers . What is NOT documented anywhere is a meeting-specific tool. There is no Glean equivalent of list_meetings or get_meeting_transcript. Meeting notes are reached the same way any other artefact is: search to find them, read_document to open one."
+      },
+
+      "claude_code_tool_prefix": "mcp__glean_default__",
+
+      "retrieval": {
+        "list_query": "*",
+        "list_filters": {
+          "app": "scribe",
+          "owner": "me",
+          "sort_by_recency": true,
+          "_note": "Use `after`/`before` for the requested sync window. The app=scribe filter is what isolates Glean Meeting Notes; observed results report Source: scribe and read_document reports datasource/docType: scribe."
+        },
+        "list_window_days": 7,
+        "transcript_via": "read_document",
+        "_note": "Verified 2026-09-13 with query=* plus app=scribe and owner=me. read_document returns the full transcript in richDocumentData.content.pageBody; richDocumentData.content is a JSON string and must be parsed. The observed summary field was null, so the adapter must not invent a generated summary."
+      },
+
+      "field_map": {
+        "id": "search.url",
+        "title": "search.title",
+        "start": "search.createdTime",
+        "participants": null,
+        "summary": "document.richDocumentData.content.summary",
+        "transcript": "document.richDocumentData.content.pageBody",
+        "link": "document.url",
+        "_note": "Observed MCP payload, 2026-09-13. Use the canonical https://app.glean.com/library/transcript/<uuid> URL as the dedupe key; repeated searches returned the same URL, and read_document uses it as the resource identifier. Search exposes Created/Updated timestamps but no participants. Parse richDocumentData.content from JSON before reading summary/pageBody. The tested document had summary=null and a full pageBody transcript."
+      },
+
+      "unconfirmed": [],
+
+      "verified": [
+        "mcp_server.cursor",
+        "mcp_server.claude_code",
+        "claude_code_tool_prefix",
+        "tools.search",
+        "tools.read_document",
+        "tools.chat",
+        "retrieval.list_query",
+        "retrieval.list_filters",
+        "retrieval.transcript_via",
+        "field_map.id",
+        "field_map.title",
+        "field_map.start",
+        "field_map.participants",
+        "field_map.summary",
+        "field_map.transcript",
+        "field_map.link"
+      ],
+
+      "_fill_in": [
+        "No adapter values remain unconfirmed. Operational prerequisite: complete one-time OAuth authentication for glean_default in Claude Code before relying on the nightly digest."
+      ]
+    },
+
+    "granola": {
+      "status": "legacy",
+      "superseded": "2026-09-13",
+      "_readme": "Granola was the capture source until 2026-09-13. Retained as a working adapter, not deleted: setting active_source to 'granola' is all it takes to switch back. Values here were in production use and are verified. The Granola-specific scripts and cached payloads are in 90_Archives/System/granola-sync/.",
+
+      "mcp_server": {
+        "cursor": "user-granola",
+        "claude_code": "claude_ai_Granola",
+        "_note": "One locally-installed server, two identities, two independently-failing auth states. The mapping table in 99_System/distribution/harness-interop.md is the reference when one side breaks."
+      },
+
+      "tools": {
+        "list": "list_meetings",
+        "get": "get_meetings",
+        "transcript": "get_meeting_transcript",
+        "query": "query_granola_meetings"
+      },
+
+      "claude_code_tool_prefix": "mcp__claude_ai_Granola__",
+
+      "retrieval": {
+        "list_window": "this_week",
+        "list_window_fallback": "last_30_days",
+        "get_batch_size": 10,
+        "transcript_via": "get_meeting_transcript",
+        "_note": "get_meetings takes up to 10 ids per call. get_meeting_transcript is one call per meeting."
+      },
+
+      "field_map": {
+        "id": "meeting_id",
+        "title": "title",
+        "start": "date",
+        "participants": "attendees",
+        "summary": "get_meetings.summary",
+        "transcript": "get_meeting_transcript.transcript",
+        "link": "transcript_link"
+      },
+
+      "unconfirmed": [],
+
+      "verified": [
+        "mcp_server.cursor",
+        "mcp_server.claude_code",
+        "tools.list",
+        "tools.get",
+        "tools.transcript",
+        "tools.query",
+        "retrieval.list_window",
+        "field_map.id"
+      ]
+    }
+  }
+}

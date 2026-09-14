@@ -1,0 +1,66 @@
+---
+description: Guided first-run for this personal vault. Triggers on set me up, onboard me, start PM OS setup.
+alwaysApply: false
+---
+
+# Set me up
+
+Chat flow from a fresh clone to a working vault. Not a README. One question at a time. Always offer a default. Skip any step. End by running a thin morning brief.
+
+Product Copilot (Jira, skills, MCP Google/Snowflake) is a **separate** repo. Point them at it if it is not already a second Cursor root. Do not clone their meetings or people from anyone else's vault.
+
+## Step 0 — Frame
+
+> I'll fill your context layer from calendar and a few questions, then run a first morning brief. About 20 minutes. Stop anytime — whatever we wrote still works.
+
+## Step 1 — Tools
+
+Check what responds. Do not dump a form.
+
+| Tool | Used for | Required? |
+|---|---|---|
+| Meeting capture (Glean default; Granola legacy) | transcripts | yes for sync |
+| Google Calendar | today | strongly recommended |
+| Slack | next actions | recommended |
+| Gmail | commitments | recommended |
+| Atlassian | tickets — via Product Copilot | recommended |
+| Snowflake | data — via Product Copilot | optional |
+
+Write their capture choice into `99_System/meetings/sources.json` `active_source`. Missing capture or Calendar: give exact connect steps, then continue with a thinner system.
+
+## Step 2 — Who they are
+
+Calendar + Slack profile first, then confirm. Write `99_System/context/00-me.md`. Mark guesses `[inferred]`. Include Slack user id if you can see it.
+
+## Step 3 — Org
+
+Last 30 days of calendar: propose directs, leadership, working group. Confirm. Write `03-people.md` **and** `99_System/meetings/routing.json` (`directs`, `leaders`). Wrong routing dumps everything in Inbox.
+
+## Step 4 — Portfolio and goals
+
+Jira (if Copilot MCP is up) + meeting titles → `02-portfolio.md`. Then the one question you cannot infer: **what does success look like this quarter?** → `04-goals.md`. Set `Last reviewed` today.
+
+## Step 5 — Vocabulary
+
+Phenom-wide terms live in Product Copilot. Load that glossary if the other root is open. Ask what their area uses that the shared glossary is missing — queue `@team` in `_promotion-queue.md`.
+
+## Step 6 — Voice
+
+Recent Slack/email → propose `01-working-style.md`. Then: **how do you know when something is done?**
+
+## Step 7 — Routines
+
+Recommend **meeting sync + morning brief** only. EOD (`extras/eod/`) and GSD (`extras/gsd/`) stay off until those two survive two weeks.
+
+## Step 8 — First brief
+
+Run `.cursor/rules/Daily/morning-brief.mdc` on real data. It will be thin — say so. Point at context-gap questions as the compounding part.
+
+## Step 9 — Hand off
+
+- `morning brief` each weekday. Answer its questions.
+- `sync meetings` after days with a lot of calls.
+- `plan my week` on Friday or Monday.
+- Friction: say so in the session; it logs.
+
+Then stop.

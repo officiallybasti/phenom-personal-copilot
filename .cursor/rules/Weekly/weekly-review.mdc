@@ -1,0 +1,59 @@
+---
+description: Personal weekly planning. Triggers on plan my week, weekly review, groom my tasks, triage tasks, set up my week.
+alwaysApply: false
+---
+
+# Plan my week / weekly review
+
+Personal planning only. Not a team GSD/FIRE audit (that lives in `extras/gsd/` if you use it).
+
+Run **interactively**. Ask before proposing the week.
+
+## Step 0 — Context
+
+Read `99_System/context/00-me.md`, `04-goals.md`, `01-working-style.md`. If goals are stubs, say so once.
+
+If `Last reviewed` on `04-goals.md` is 21+ days old, start with a goals check. Write a new date only after they confirm.
+
+## Step 1 — Health check
+
+Run `99_System/scripts/healthcheck.sh` (or the same checks by reading the vault). If meeting capture has been down more than three days **after they have been using sync**, stop and say so first.
+
+## Step 2 — Last week
+
+From `## This Week` in `01_Tasks/Tasks.md` and recent briefs/EODs: delivered, carried with evidence, stalled, dropped. Ask before carrying anything.
+
+## Step 3 — Triage Inbox
+
+Work `## Inbox` in `01_Tasks/Tasks.md` in batches.
+
+| Test | Bucket |
+|---|---|
+| They own it and it matters now | **Active** (cap 10) |
+| Someone else owns it | **Waiting On** (name + follow-up date) |
+| Context only | **Context Backlog** |
+| Dead | **Done** or delete |
+
+Be aggressive about Dead. If Active > 10, force the cut.
+
+## Step 4 — Age report
+
+Waiting On > 10 days; Active carried a third week.
+
+## Step 5 — 1:1 queues
+
+If `99_System/1o1/team-roster.json` has directs, refresh `01_Tasks/1o1-Queue.md`.
+
+## Step 6 — Propose 3–5 outcomes for this week
+
+Ask what slips Friday, what must move, what to delegate, what not to do. Present **3–5** SMART outcomes. **Wait for approval.** Write them under `## This Week` in `Tasks.md`.
+
+Do not create Jira cards unless they ask. Shared Jira skills live in Phenom Product Copilot.
+
+## Step 7 — Archive
+
+Move `## Done` older than two weeks to `90_Archives/Tasks/YYYY-MM.md`.
+
+## Friction
+
+Append clumsy steps to `99_System/improvement/friction-log.md` without asking.

@@ -1,0 +1,28 @@
+---
+description: Standard folder structure for a new project
+alwaysApply: false
+---
+
+# New project structure
+
+When they ask to create or scaffold a project:
+
+1. Use their path, or `04_Projects/<project-name>/`:
+
+```
+<project-name>/
+├── meetings/
+├── prototype/
+├── requirements/
+├── background/
+├── decisions/
+└── assets/
+```
+
+2. Optional README in each folder — copy wording from `99_System/templates/project/`.
+
+3. Do not create `roadmap/` or `output/` unless they ask.
+
+## Friction
+
+Append clumsiness to `99_System/improvement/friction-log.md` without asking.

@@ -1,0 +1,114 @@
+---
+description: Prepare for upcoming 1:1 meetings. Use when you want to prep for a 1:1 with a direct report.
+alwaysApply: false
+---
+
+# 1:1 Prep Assistant
+
+You help prepare for **upcoming** one-on-one meetings with direct reports. You look up context, create a new tab in their shared Google Doc, populate your talking points, and produce a prep brief.
+
+## When to Use
+
+- "Prep me for my 1:1 with [Name]"
+- "I have a 1:1 with [Name] tomorrow — what should I cover?"
+- "What do I need to follow up on with [Name]?"
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `99_System/1o1/team-roster.json` | Maps each direct → Google Doc ID, folder path, email |
+| `01_Tasks/1o1-Queue.md` | Central weekly talking-points queue (sections per person) |
+| `99_System/templates/1o1/1o1-GoogleDoc-Tab.md` | Template for new Google Doc tabs (`{DATE}` placeholder) |
+| `99_System/templates/1o1/1o1-Lead-Prep-Post.md` | Private lead-only prep/post template (not shared) |
+| `05_Areas/People/{folder}/` | Meeting notes + `Task Overview.md` per person |
+
+## Prep Workflow
+
+### Step 0: Roster Lookup
+
+1. Read `99_System/1o1/team-roster.json`
+2. Resolve the person by name (case-insensitive match)
+3. Extract `doc_id`, `folder`, `email`
+4. The full folder path for meeting notes is: `phenom-personal-copilot/05_Areas/People/{folder}/`
+
+### Step 1: Determine the Date
+
+**Preferred:** Use the **Google Calendar MCP** (e.g. list or search upcoming events) to find the next 1:1 with {Name}. Query for events containing "1:1" and the person's name, or list this week's events and pick the matching one.
+
+**Fallback:** If no Calendar MCP is available or no event is found, ask the user: "When is your 1:1 with {Name}?"
+
+- Use the event date as `YYYY-MM-DD` for the template and `YY/MM/DD` for the **tab title** (e.g. 2026-03-10 → `26/03/10`).
+
+### Step 2: Create Google Doc Tab
+
+1. Read the tab template from `phenom-personal-copilot/99_System/templates/1o1/1o1-GoogleDoc-Tab.md` and substitute `{DATE}` with the meeting date.
+2. Use **Google Workspace MCP** (see `Phenom - Product Copilot/skills/google.md`) to create a new tab in the shared doc (`doc_id` from the roster) titled `YY/MM/DD`, and insert the rendered template content. Do **not** use removed paths under `Hiring Intelligence - AI Product Manager/` or local Python scripts from the old repo.
+
+If your environment does not expose Google Doc edit tools, produce the tab content as markdown for the user to paste manually into the doc.
+
+The tab should include:
+- Proper heading styles (H1, H2, H3)
+- Bold+underline section labels
+- Italic helper text
+- Checkbox bullets for talking points / action items
+- Horizontal rule separators
+
+### Step 3: Populate Manager Talking Points
+
+1. Read `01_Tasks/1o1-Queue.md`
+2. Find the section under `## {Name}`
+3. If there are bullet items, create a temp file with just those items
+4. Insert them into the Google Doc tab after the "Talking Points Manager" heading using **Google Workspace MCP** (same as Step 2). If MCP cannot update the doc, output the block for manual paste.
+
+5. After successfully inserting, clear the consumed items from `1o1-Queue.md` (remove bullets under that person's section, leave the heading)
+
+### Step 4: Gather Context
+
+1. **Read Task Overview** (if it exists) for that person at `05_Areas/People/{folder}/Task Overview.md`
+2. **Read last 2–3 meeting notes** in their folder (most recent first, sorted by filename date prefix)
+3. If no meetings exist, note this in the prep brief
+
+### Step 5: Analyze & Output — Prep Brief
+
+Extract and summarize into a concise prep brief:
+
+```markdown
+## 1:1 Prep: {Name} — {Date}
+
+### Last Meeting Summary
+[2–3 sentences from most recent meeting]
+
+### Open Action Items to Check
+- [ ] [Action] — Owner: [You/Them] — From: [Date]
+
+### Recurring Themes / Patterns
+- [Theme]: [What you've noticed across meetings]
+
+### Suggested Agenda
+1. **Pulse** — Overall feeling (1–5), goal achievement vs last week, learnings, kudos, blockers
+2. **Talking points** — Your items (from queue) + their items from the shared doc
+3. **Support / decisions** — What they need from you
+4. **Outcomes** — Decisions, action items, follow-up, next meeting
+5. **Development** — [If it's been a while or they raised it]
+
+### Questions to Ask
+- [Question tied to their context]
+- [Question to surface blockers]
+- [Question for growth/feedback]
+
+### Flags / Risks
+- [Anything that needs attention or escalation]
+```
+
+## Quality Checks
+
+- [ ] Roster lookup succeeded and correct doc was used
+- [ ] Tab was created in the Google Doc with the correct date (YY/MM/DD title)
+- [ ] Queued talking points were inserted and cleared from `1o1-Queue.md`
+- [ ] Action items have owners and source meeting
+- [ ] Questions are specific to their context, not generic
+
+## Friction
+
+If anything in this run was clumsy — a wrong assumption, a step skipped, a question already answered, context that should have been in `99_System/context/` but was not — append it to `99_System/improvement/friction-log.md` in that file's format. Do not ask permission, do not announce it. The weekly self-improvement loop reads it.

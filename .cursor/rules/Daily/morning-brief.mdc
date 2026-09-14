@@ -1,0 +1,245 @@
+---
+description: Forward-looking daily brief. Reads last night's EOD, triages today, ranks commitments, DMs Slack with numbered next actions. Triggers on "morning brief", "daily brief", "brief me", "what's my day", "from the brief", "brief actions".
+alwaysApply: false
+---
+
+# Morning Brief
+
+**EOD writes memory. This loop spends attention.** Last night's digest (`00_Inbox/Daily/YYYY-MM-DD-eod.md`) already synced Glean and sent an FYI Slack DM. Do not redo that work. This run decides what today is for, asks context questions, and is the only loop that expects a reply.
+
+| EOD (20:00 + login catch-up) | Morning brief (this rule) |
+|---|---|
+| Sync meetings, high-level summary | Today's three, calendar prep, mail/Slack to act on |
+| Slack: no reply needed | Slack: numbered next actions |
+| Does not write context files | Writes context on confirm |
+| Does not touch `Tasks.md` | Offers to capture actions |
+
+**Outputs:** `00_Inbox/Daily/YYYY-MM-DD-brief.md` **and**, if Slack MCP is connected and a Slack user id is in `99_System/context/00-me.md`, a Slack DM with numbered next actions. Skip Slack if either is missing.
+
+## How to run it
+
+Run it **interactively, in sections**. Present one section, wait for me, move on. Do not dump the whole brief in one Cursor message.
+
+Between sections, offer to go deeper but default to moving on. "Continue" means continue.
+
+**If this turn is a Slack reply to today's brief** (`from the brief`, `brief actions`, a pasted DM reply, or numbers like `do 1 and 3`): skip the full run. Jump to **Step 8 — Act from Slack**.
+
+## Step 0 — Load context
+
+Before anything else, read:
+
+- `99_System/context/00-me.md` through `05-glossary.md`
+- `99_System/context/99-open-questions.md` — so you don't re-ask what I already deferred
+- `99_System/context/06-customers.md` if any customer name appears in today's calendar or yesterday's meetings
+
+Do not summarise this back to me. Just use it.
+
+If `04-goals.md` has confirmed outcomes, rank the day against those. If it is still a stub, say so once and rank from calendar plus open tasks instead. Do not invent a north star.
+
+If Last reviewed on `04-goals.md` is 21+ days ago, say so once (goals may be stale). Stay out of another team's weeds unless the user is covering a new person.
+
+Prefer yesterday's EOD file `00_Inbox/Daily/YYYY-MM-DD-eod.md` (yesterday's date) for the recap when it exists. If it is missing, say so once — login catch-up (`eod-catchup.sh`) should have filled it; do not silently re-implement the whole EOD sync unless catch-up clearly failed.
+
+## Step 1 — Yesterday
+
+**Do not re-sync Glean if yesterday's `*-eod.md` exists** with an `EOD-MEETINGS` marker. Copy the meetings table from that file (and "Observed" / "Terms noticed" into later sections). Glean is primary only when that file is missing.
+
+Do not call Granola unless `sources.json` `active_source` is `granola`. Do not backfill the July–September capture gap.
+
+If the EOD is missing: fetch **yesterday + today only** through the Glean adapter in `99_System/meetings/sources.json`. Follow `.cursor/rules/Meetings/meeting-sync.mdc`. If search fails, say capture failed — never imply a quiet day.
+
+Present a table: time, meeting, and **one line** on what changed.
+
+Then list items from EOD "Observed" that landed on me and are not yet in `01_Tasks/Tasks.md`. Offer to append them. Do not dump them without asking. Format:
+
+```
+- [ ] <action> | Owner: <name> | Source: <meeting>, <date> | Due: <date> | Added: <today>
+```
+
+If yesterday had no meetings, say so in one line and move on. Do not pad.
+
+## Step 2 — Today
+
+Read today's calendar **directly from Google Calendar MCP** (`primary`, local timezone, midnight-to-midnight). Use Glean `meeting_lookup` only as fallback if the Calendar connector fails. If both fail, say calendar unavailable in one line and use today's Glean/vault meetings plus any 1:1s you can infer from folders — do not invent a schedule.
+
+For each meeting, classify prep into exactly one of:
+
+- **Needs real prep** — propose the prep as a task, and offer to do it now
+- **Needs a reminder** — one line I should walk in remembering
+- **No prep** — say nothing beyond the name
+
+Most meetings are the third category. Be honest about that rather than manufacturing prep work to look useful.
+
+For recurring meetings with an established pattern (1:1s, WBR), check the relevant person or team folder and surface anything open from last time. For 1:1s specifically, read `01_Tasks/1o1-Queue.md` and flag if that person's section has items waiting.
+
+## Step 3 — Open commitments
+
+`01_Tasks/Tasks.md` is private and untrusted until `plan my week`. Treat it as an inbox, not a plan. Surface only:
+
+- Items owned by me that are **overdue** or **due today**
+- Items I'm waiting on from someone else that have been open **more than five days** — these are the ones that quietly die
+- Items whose source meeting was more than two weeks ago and that have had no movement — candidates for deleting rather than doing
+
+Do not list everything. A brief that reprints my task list is a task list.
+
+## Step 3b — Communication inbox
+
+Read communication systems **directly on every run**:
+
+### Gmail
+
+Use Gmail MCP, not Glean:
+
+1. Search `in:inbox -in:draft` — because inbox-zero is my operating model, a thread intentionally left in Inbox is a reminder.
+2. Search `is:unread -in:draft newer_than:7d`.
+3. Ignore newsletters, automated notifications, calendar responses and threads where I am only CC'd unless they require an explicit decision or indicate customer/leadership risk.
+4. Gmail can return a thread because an older message matched. Judge the **latest relevant message and its labels**; do not surface Trash or already-answered threads as open work.
+
+### Slack
+
+Use Slack's private search connector:
+
+1. Search `is:saved` across my channels.
+2. Search `to:me after:<last-working-day>` across public channels, private channels, group DMs and DMs.
+3. Surface only messages that contain a request, unresolved decision, customer risk, leadership request or commitment. Suppress thanks, acknowledgements and informational chatter.
+
+The Slack MCP connector exposes **saved messages**, but it does **not expose Slack's unread state**. Never claim an item is unread. Label the second set **recent messages to me**, and say exact unread status is unavailable through the connector.
+
+Present at most five items total, ranked by risk and goal relevance:
+
+- **Act today**
+- **Waiting / monitor**
+- **Stale saved item — resolve or unsave**
+
+Do not mark email read, archive, unsave, reply or otherwise mutate communication state during the brief.
+
+## Step 4 — Context gap sweep
+
+**This is the section that makes the brief worth running.** Everything above is a report; this is how the system gets smarter.
+
+Scan yesterday's EOD ("Terms noticed"), meeting notes, and any Slack or email you can reach, for things you **do not understand**:
+
+- Acronyms, product names, system names, internal jargon not in `05-glossary.md`
+- People not in `03-people.md`
+- Files, docs, dashboards or repos referenced as if I'd know them
+- Milestones, dates, or commitments implying a plan you have no record of
+- Customers, deals or escalations not in `06-customers.md`
+- Decisions that appear to contradict something already in the context layer
+
+For each gap, ask me **one compact question** with:
+
+1. The term or name, and where you saw it
+2. What you inferred it means from surrounding context
+3. What you'd write to which context file
+
+Then let me answer **save**, **correct it**, **skip**, or **later**:
+
+- **save** → append to the right file in `99_System/context/`, unmarked (I confirmed it)
+- **correct it** → write what I said, unmarked
+- **skip** → don't ask again; note it in `99-open-questions.md` with status `skipped`
+- **later** → add to `99-open-questions.md` with status `open`
+
+**Tag every saved fact** with `@team`, `@personal` or `@sensitive` per `99_System/context/README.md`. Anything `@team` also gets appended to `99_System/context/_promotion-queue.md` so the weekly promotion loop can contribute it to the shared Phenom repo. This is the step that makes one person's answer available to every PM — glossary terms especially, since vocabulary is what everyone re-learns from scratch.
+
+Rules for this section:
+
+- **Cap it at five questions per brief.** Rank by how often the term appeared and how central it is. An unbounded interrogation gets abandoned, and an abandoned loop teaches nothing.
+- **Never ask twice.** Check `99-open-questions.md` first.
+- **Show your inference.** "I think X means Y because of Z" is answerable in five seconds; "what is X?" makes me do the work.
+- **Contradictions get priority** over new terms. Stale context is more dangerous than missing context, because the agent acts confidently on it.
+
+## Step 5 — What today is actually for
+
+Propose **three** things. Not five, not a list of everything outstanding.
+
+Rank against `04-goals.md` when it has content. Ask whether the team should own an item when the three things put the user in another pod's weeds.
+
+Then say the uncomfortable part out loud: if the day as scheduled doesn't serve anything in `04-goals.md`, tell me. If a meeting on today's calendar looks like it could be an async message, say that too. This is the one place in the brief where you should be willing to annoy me.
+
+## Step 6 — Write the file
+
+Write `00_Inbox/Daily/YYYY-MM-DD-brief.md`:
+
+```markdown
+# Morning Brief — YYYY-MM-DD, Dayname
+
+## Today's Three
+1.
+2.
+3.
+
+## Yesterday
+| Time | Meeting | What changed |
+
+## Today's Calendar
+| Time | Meeting | Prep |
+
+## Open & Aging
+### Overdue or due today
+### Waiting on others (>5 days)
+
+## Mail & Slack
+### Act today
+### Waiting / monitor
+### Stale saved items
+
+## Context Learned Today
+- <term> → saved to <file>
+
+## Flagged
+- <anything I should be uncomfortable about>
+
+---
+*Generated YYYY-MM-DD HH:MM*
+```
+
+Keep the file short enough to reread at 6pm.
+
+## Step 6b — Slack DM (always)
+
+After the file is written, **always** send a private Slack DM. Do not ask permission.
+
+- `channel_id` from `00-me.md` Slack user id. Tool: `slack_send_message`. Skip if unset.
+- First line: `*Morning Brief — [YYYY-MM-DD, Day of Week]*`
+- Slack markdown only. **No tables, no `#` headers.**
+- Body: Today's Three → Flagged (one line) → collisions / real-prep meetings → Mail & Slack act-today.
+- Idempotent: skip if today's `*Morning Brief — [date]*` DM already exists.
+- Slack failure does not fail the run.
+
+End the parent DM with up to **seven** numbered next actions (Today's Three, then Act today, then real-prep meetings):
+
+```
+*Next — reply in this thread*
+Reply with numbers (`1`, `2 4`, `skip 3`) or a verb (`draft 2`, `prep 5`, `task 1`, `send 4`).
+I'll do it in Cursor and confirm here.
+_Saved to 00_Inbox/Daily/YYYY-MM-DD-brief.md_
+```
+
+Do not mutate Gmail or Slack unless the reply says **send**.
+
+## Step 7 — Friction
+
+If anything in this run was clumsy — a wrong assumption, a question I'd already answered, a section I skipped — append it to `99_System/improvement/friction-log.md` in the format that file defines. Don't ask permission and don't tell me you did it. The weekly self-improvement loop reads it.
+
+## Step 8 — Act from Slack
+
+Trigger: I reply in the Morning Brief DM thread, paste that reply, or say `from the brief` / `brief actions`.
+
+1. Read today's brief file and, if needed, `slack_read_thread` on that DM.
+2. Map numbers to the Next-actions block. Ambiguous → ask once.
+3. Execute only what I named:
+
+| Verb (or implied) | Do this |
+|---|---|
+| *(bare number)* or `task` | Append to `01_Tasks/Tasks.md` Inbox. Source: `Morning brief, YYYY-MM-DD`. |
+| `prep` | Do the prep now. |
+| `draft` | Draft only (`create_draft` / `slack_send_message_draft`). Do not send. |
+| `send` | Send after showing the text. |
+| `skip` | Drop that item; note under Flagged in the brief file. |
+
+4. Confirm in Cursor. Reply in the **same Slack thread** (one line per item).
+5. Do not rerun Steps 0–6 unless I ask for a new brief.
+
+## Scheduling
+
+EOD: `eod-agent.sh` at 20:00 (`com.personal.eod-agent`) plus `eod-catchup.sh` on login/wake (`com.personal.eod-catchup`). This brief stays **interactive in Cursor**. Not a Cursor Automation.

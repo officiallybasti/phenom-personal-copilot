@@ -1,0 +1,108 @@
+---
+description: Review and analyze completed 1:1 meetings. Use when you have meeting notes and want to extract actions, update Task Overview, or identify follow-ups.
+alwaysApply: false
+---
+
+# 1:1 Review Assistant
+
+You help **analyze completed** one-on-one meetings: extract decisions, action items, and blockers, then update tracking docs and flag follow-ups.
+
+## When to Use
+
+- "Review my 1:1 with [Name] from today"
+- "Analyze this meeting note and extract action items"
+- "Update Tim's Task Overview based on this 1:1"
+- After a meeting sync: "Process this 1:1 and track the items"
+
+## File Structure
+
+- **Meeting notes**: `phenom-personal-copilot/05_Areas/People/[Person]/` — provide path or @-mention the file
+- **Task Overview**: `05_Areas/People/[Person]/Task Overview.md` — running tracker per person
+
+**Templates:**
+- **Shared (employee sees):** `99_System/templates/1o1/1o1-Template.md` — structure of the 1o1 doc: Pre-meeting (talking points, previous actions); Pulse (feeling 1–5, goal achievement, learnings, kudos, blockers); In the meeting (support, notes); Outcomes (decisions, action items, follow-up, next meeting). Use this to know what to extract from meeting notes.
+- **Lead only (private):** `99_System/templates/1o1/1o1-Lead-Prep-Post.md` — your post-meeting analysis: key themes, risk indicators, opportunities, Task Overview items. Not shared with the employee. After review, suggest or fill this for the lead.
+
+## Review Workflow
+
+### Step 1: Read the Meeting Notes
+
+If the user shared a path or file, read it. If notes are minimal (e.g. "No detailed notes captured"), ask for:
+- A summary they can paste
+- Or key points they remember
+
+### Step 2: Extract Structured Content
+
+Use the shared template structure (`1o1-Template.md`) to know what to look for. Extract:
+
+| Section | Extract |
+|---------|---------|
+| **Pulse** (if in notes) | Overall feeling (1–5), goal achievement vs last week, learnings, kudos |
+| **Blockers** | Issues needing escalation or resolution |
+| **Support / decisions** | What they need from you; commitments, choices, agreements |
+| **Decisions made** | Explicit decisions from Outcomes |
+| **Action items** | From Outcomes: description, owner, due if mentioned (single list by owner) |
+| **Follow-up items** | Topics to revisit next meeting |
+| **Development / growth** | Career, skills, feedback discussed (if any) |
+| **For lead-only post** | Key themes, risk indicators, opportunities → suggest for `1o1-Lead-Prep-Post.md` |
+
+### Step 3: Output — Meeting Analysis
+
+Produce:
+
+```markdown
+## 1:1 Review: [Person] — [Date]
+
+### Decisions Made
+- [Decision 1]
+- [Decision 2]
+
+### Action Items
+**For [Team Member]:**
+- [ ] [Action] | Due: [if mentioned]
+
+**For Product Lead (you):**
+- [ ] [Action] | Due: [if mentioned]
+
+**For Others:**
+- [ ] [Action] | Owner: [Name]
+
+### Blockers
+- [Blocker] — [Suggested next step, e.g. escalate, create Jira]
+
+### Follow-up for Next 1:1
+- [Topic to revisit]
+
+### For Lead-Only Post (1o1-Lead-Prep-Post.md)
+- **Key themes:** [Theme from this meeting]
+- **Risk indicators:** [If any]
+- **Opportunities:** [If any]
+
+### Development / Growth
+- [Career or skill topic discussed]
+```
+
+### Step 4: Update Task Overview and Lead Post-Meeting
+
+1. **Read** `05_Areas/People/[Person]/Task Overview.md` (create if missing)
+2. **Merge** new action items, ongoing themes, and follow-ups into the Task Overview
+3. **Mark completed** items that were done (if mentioned in the meeting)
+4. **Propose updated content** — show the new Task Overview section(s) and ask: "Should I update their Task Overview with this?"
+5. **Lead-only post-meeting:** Suggest or draft content for `99_System/templates/1o1/1o1-Lead-Prep-Post.md` (key themes, risk indicators, opportunities, items for Task Overview). Remind the user this doc is private and not shared with the employee.
+
+### Step 5: Optional Integrations
+
+- **Jira**: If blockers or features were discussed, ask: "Should I draft a Jira epic/story for [X]?" (triggers `jira-epic-drafting.mdc` context)
+- **Escalation**: Flag anything that needs your manager or another stakeholder
+
+## Quality Checks
+
+- [ ] Action items have clear owners
+- [ ] Follow-ups are concrete (revisit what, why)
+- [ ] Task Overview update is additive and organized
+- [ ] Lead-only post content (key themes, risks, opportunities) suggested for `1o1-Lead-Prep-Post.md` where relevant; user reminded it’s private
+- [ ] No fabrication — only extract what’s in the notes or user-provided summary
+
+## Friction
+
+If anything in this run was clumsy — a wrong assumption, a step skipped, a question already answered, context that should have been in `99_System/context/` but was not — append it to `99_System/improvement/friction-log.md` in that file's format. Do not ask permission, do not announce it. The weekly self-improvement loop reads it.

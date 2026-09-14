@@ -1,0 +1,92 @@
+---
+description: Weekly loop where the assistant proposes improvements to its own rules, skills and context files. Reads friction log, draft deltas, skill candidates and the idea queue. Triggers on "self-improvement loop", "improve my setup", "weekly system review".
+alwaysApply: false
+---
+
+# Self-Improvement Loop
+
+Run weekly. Four parts, presented **one at a time** — I answer each before you move on.
+
+A system that cannot rewrite its own core files never improves. This loop is that mechanism.
+
+Nothing here writes to `.cursor/rules/` or `99_System/context/` without my explicit yes in the session.
+
+---
+
+## Part 1 — Friction
+
+Read `99_System/improvement/friction-log.md`.
+
+Group entries by root cause, not by date. Five complaints about the same missing context file are one problem.
+
+Rank by **frequency × cost**. Something mildly annoying every day beats something painful once.
+
+For the top three, propose a **specific edit** — the file, the section, and the replacement text. Not "we should improve the meeting rule" but the diff.
+
+Then be honest about which frictions are not fixable by editing a rule. Some are missing integrations, some are me not using the system as intended. Say which is which; a rule edit aimed at a behavioural problem just adds words nobody reads.
+
+After I decide, mark handled entries `resolved` or `wontfix` with a one-line reason. Never delete — the log's history is what shows whether a fix actually worked.
+
+## Part 2 — Skill candidates
+
+Read `99_System/improvement/skill-candidates.md`, then look for new candidates by reviewing the past week: recent sessions, new files in `04_Projects/`, patterns in `01_Tasks/Tasks.md` and the daily briefs in `00_Inbox/Daily/`.
+
+A thing becomes a skill candidate when it's been done **three or more times** with roughly the same shape and a materially different result each time it was improvised.
+
+For each candidate, propose:
+
+- What it does and when it triggers
+- Which existing rule it extends, or why it needs to be new
+- The three or four steps that make up its spine
+- The honest case against building it
+
+Cap at three proposals. Most weeks the right answer is one or zero — say so rather than inventing work. A rules directory nobody can hold in their head is worse than a small one.
+
+## Part 3 — Draft deltas
+
+The sharpest of the four, because it harvests a signal I generate anyway.
+
+When I ask for a draft — Slack message, email, exec update, spec section, Jira description — I usually edit it before it goes out. That edit is the most precise feedback available about how I actually write, and it's currently thrown away.
+
+Look for drafts produced in the past week, then find where they landed: the Slack thread, the sent mail, the committed file, the Jira ticket. Compare.
+
+Report only **patterns**, not individual edits:
+
+- Structural: I always cut the intro, I always add a decision line at the top
+- Tonal: more direct with directs, more hedged with leaders
+- Lexical: words and constructions I reliably remove
+- Length: consistently shorter or longer than drafted, and by how much
+
+Two or more independent instances before you call it a pattern. One rewrite is a mood.
+
+Propose the additions to the writing-preferences section of `99_System/context/01-working-style.md`. Log what you found — including "nothing conclusive" — in `99_System/improvement/draft-deltas.md`.
+
+Where you genuinely can't reach the sent version, say so instead of guessing. A wrong lesson about my voice is worse than no lesson, because it gets applied to everything.
+
+## Part 4 — Idea queue
+
+Read `99_System/improvement/idea-queue.md` — external AI tips, posts and videos I've dropped in during the week.
+
+For each, run the audit in `.cursor/rules/System/improve.mdc` and give me a verdict: **adopt**, **adapt**, **already have it**, or **hype**.
+
+Then close the loop on ideas previously marked adopt. Did we actually build it? Is it being used? If something was adopted three weeks ago and has never run, that's a stronger signal than any new idea in the queue — surface it.
+
+## Part 5 — Context promotion
+
+Run `.cursor/rules/System/context-promotion.mdc`.
+
+Batch the week's confirmed `@team` facts into a pull request against the shared Phenom PM repo, then pull down what other PMs have contributed since last time. This is the part that makes the system worth more than the sum of its users — and the part most likely to quietly stop, because nothing breaks when it does.
+
+If no promotion has happened in three weeks, say so directly. Either the context layer has stopped learning, or the shared repo has no one merging. Both are worth knowing.
+
+---
+
+## Closing
+
+End with **one** question: what's the single biggest thing this system still can't do for me?
+
+Log the answer at the bottom of `99_System/improvement/idea-queue.md` under `## Standing gaps`. Recurring answers are the real roadmap for this vault — more reliable than anything the four parts above will surface, because they come from me rather than from the logs.
+
+## Scheduling
+
+Weekly, before the week starts. Sunday evening or Monday morning, whichever survives contact with reality. Interactive by design — every part ends in a decision only I can make.

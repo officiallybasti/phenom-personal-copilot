@@ -1,0 +1,246 @@
+---
+description: Sync meeting notes and transcripts to local markdown. Source-agnostic — Glean is the primary capture adapter, Granola is retained as legacy. Triggers on sync/update/latest meetings. MCP + vault files only — read sources.json and routing.json first.
+alwaysApply: false
+---
+
+# Meeting Notes Sync
+
+## When to Use This Rule
+
+This rule activates when the user says (or similar):
+- "sync my meetings" / "sync my latest meetings" / "get my latest meetings"
+- "sync my Glean" / "sync Glean meetings" / "Glean sync" / "update my Glean meetings"
+- "sync according to my syncing rules" / "run meeting sync"
+- "sync my Granola" / "Granola sync" — Granola is legacy (see **Adapters**), but the request still routes here
+
+## The two halves of this rule
+
+Everything below is one of two things, and the split is the point:
+
+- **Routing** — which folder a meeting lands in, what the file is called, how duplicates are prevented, when the inbox is emptied. None of it depends on which tool did the recording. It has survived one capture-tool change and should survive the next unchanged.
+- **The adapter** — the MCP server name, the tool calls, the shape of what comes back. This is the *only* part that knows a vendor exists, and it lives in `99_System/meetings/sources.json`, not in this rule's prose.
+
+When the capture tool changes again, edit `sources.json`. Do not thread a new vendor's tool names through the routing sections.
+
+## Execution contract (follow every time — no shortcuts)
+
+1. **Read config first** (before any MCP call or writing files):
+   - `99_System/meetings/sources.json` — **the capture adapter**: `active_source`, its MCP server name per harness, its tools, its field map, and its `unconfirmed` list
+   - `99_System/meetings/routing.json` — **single source of truth** for paths, `directs`, `leaders`, `leader_folders`, `product_team.title_keywords`
+   - `99_System/meetings/backup_tracking.json` — skip IDs in `backed_up_meeting_ids`
+2. **Sync method:** the MCP server named by the active adapter + **Write** markdown into the vault. **Do not** create or run Python/shell sync scripts, subagents, or `/tmp` automation — the rule + MCP is the implementation. (`90_Archives/System/granola-sync/` is what happens when this is ignored: seventeen one-off scripts nobody can safely delete.)
+3. **Workspace root** (resolve all paths from here): the folder that contains `AGENTS.md` in this clone.
+
+   Use `config.paths.base` from routing.json relative to this root (e.g. `{root}/00_Inbox/Meetings/`).
+
+4. **Routing:** Apply the priority table below using **only** names/keywords from `routing.json` — never invent folders or hardcode people lists in code.
+
+5. **After sync:** Update `backup_tracking.json`, then archive Inbox files older than 5 days per config.
+
+6. **Unconfirmed values:** anything listed in the active adapter's `unconfirmed` array is a guess. If a call using one fails, **say which unconfirmed value you were relying on and stop** — do not try variations until something works, and do not report a clean sync that fetched nothing.
+
+## The normalised meeting
+
+Every adapter produces this shape, and every routing rule below reads only this shape:
+
+| Field | Used by |
+|---|---|
+| `id` | Duplicate prevention — the key written to `backed_up_meeting_ids` |
+| `title` | Routing priority table, and the filename |
+| `start` | The `YYYY-MM-DD_HHMM` filename prefix and the **Date** line |
+| `participants` | Routing priority table |
+| `summary` | The `## Meeting Notes` section |
+| `transcript` | The `## Full Transcript` section — may be empty |
+| `link` | The permalink at the bottom, if the source has one |
+
+The field map from a source's raw payload to these seven fields is `sources.field_map` in `sources.json`. If a field is missing from the payload, leave it empty and note it in the file — never guess a value into it, and never guess an `id`, because a wrong `id` breaks duplicate prevention silently.
+
+## Adapters
+
+### Glean — primary since 2026-09-13
+
+Glean meeting notes records locally from the desktop app and indexes the transcript, summary and metadata as a first-class artefact. Read `sources.sources.glean` in `sources.json` for the server name, tools and field map.
+
+**The structural difference from Granola, and it matters:** Glean publishes **no meeting-specific MCP tool**. There is no `list_meetings` and no `get_meeting_transcript`. Its default MCP server exposes `search`, `chat`, `read_document`, `employee_search`, `user_activity`, `memory` and `memory_schema` ([docs](https://docs.glean.com/administration/platform/mcp/create-mcp-servers)), and meeting notes are reached through the same `search` → `read_document` path as any other indexed document ([docs](https://docs.glean.com/user-guide/assistant/meeting-notes/)).
+
+So "find new meetings" is a **search with a date filter**, not a list call:
+
+1. `search` with `retrieval.list_query` from `sources.json`, scoped to the last `retrieval.list_window_days` days.
+2. For each hit not already in `backed_up_meeting_ids`, `read_document` on its id or URL to get the summary and transcript.
+3. Map the result onto the normalised meeting via `field_map`.
+
+Adapter values were verified 2026-09-13 (`unconfirmed` is empty). Dedupe on the canonical Library transcript URL. **Do not invent substitutes.** If the search returns nothing or the wrong kind of document, report that the query in `retrieval.list_query` needs correcting and stop. Claude Code still needs a one-time OAuth for `glean_default` before the headless EOD can retrieve meetings.
+
+### Granola — legacy, superseded 2026-09-13
+
+Retained and still correct. Switching back is one field: set `active_source` to `granola` in `sources.json`.
+
+Server name differs per harness — `user-granola` in Cursor, `claude_ai_Granola` in Claude Code. Cursor exposes the Granola server from mcp.json under `user-granola`, not "Granola" or "granola". Tools: `list_meetings`, `get_meetings`, `get_meeting_transcript`, `query_granola_meetings`.
+
+Flow: `list_meetings` with `time_range: "this_week"` (or `"last_30_days"` for a longer window) → `get_meetings` with the ids, max 10 per call, for metadata and the AI summary → `get_meeting_transcript` once per meeting for the verbatim transcript.
+
+## Target Locations (from routing config)
+
+All paths are defined in **`99_System/meetings/routing.json`**. When resolving paths, use workspace root + `config.paths.base` + path key (e.g. `config.paths.people_directs`). If the config is missing, save to `{root}/00_Inbox/Meetings/` (flat).
+
+| Bucket | Config path key | Resolved path (example) |
+|--------|-----------------|--------------------------|
+| **Inbox (default)** | `paths.inbox` | `{base}/00_Inbox/Meetings/` — **no subfolder** (e.g. no Glean/ or Granola/); save unrouted meetings directly here. Flat, last 5 days only. |
+| **1:1 with direct** | `paths.people_directs` + `/{Name}/` | `{base}/05_Areas/People/Team/{Name}/` |
+| **Meeting with leader** | `paths.people_leaders` + `/{Name}/` | `{base}/05_Areas/People/Leaders/{Name}/` |
+| **Product team** | `paths.product_team` | `{base}/05_Areas/Product Team/Meetings/` |
+| **Archive** | `paths.archive` | `{base}/90_Archives/Meetings/` (only for old untriaged Inbox files) |
+
+**Routing config** (`99_System/meetings/routing.json`) also contains: `directs`, optional `direct_folders` (aliases → one Team folder), `leaders`, optional `leader_folders`, `leader_customer_inbox` (account/customer leader meetings → Inbox), `product_team.title_keywords`, and `paths`.
+
+## File Naming Convention
+
+Use this exact format: `YYYY-MM-DD_HHMM_Meeting_Title.md`
+
+Examples:
+- `2026-01-15_0504_Focus_on_POV.md`
+- `2026-01-14_0905_Alex_Patel.md`
+
+Rules for title conversion:
+- Replace spaces with underscores `_`
+- Replace `/` with `_`
+- Replace `<>` with nothing (remove them)
+- Keep `&` as is
+- Remove any other special characters
+
+## Routing (before creating each file)
+
+Once a meeting has been normalised (title and participants present), before writing anything:
+
+1. **Load config** from `99_System/meetings/routing.json`. If missing, save to `phenom-personal-copilot/00_Inbox/Meetings/` (flat).
+2. **Decide bucket** using the meeting's **title** and **participants** (if the source returns them). Apply in this order; first match wins.
+
+| Priority | Rule | Condition | Save path (use config) |
+|----------|------|-----------|------------------------|
+| 1 | **1:1 with direct** | Title contains 1:1 keywords (e.g. "1o1", "1:1", " - 1o1") **and** exactly one name from `config.directs` | `{base}/{paths.people_directs}/{folder}/` where **folder** = `config.direct_folders[resolved_person]` if that key exists, otherwise **resolved_person** |
+| 2 | **Leader + customer/account (inbox)** | Title or attendees match `config.leaders` **and** the meeting is customer/account work that should stay triaged in Inbox (see **Leader customer inbox** below). Applies to **all** leaders in `config.leaders`. | `{base}/{paths.inbox}/` |
+| 3 | **Leader** | Title or attendees contain any name from `config.leaders` (and not already matched above). Evaluate **`config.leaders` in array order** (first match wins) so longer names are listed before shorter substrings that could false-match. Set **resolved_person** to the matched leader string from the list. | `{base}/{paths.people_leaders}/{folder}/` where **folder** = `config.leader_folders[resolved_person]` if that key exists, otherwise **resolved_person** |
+| 4 | **Product team** | Title contains any of `config.product_team.title_keywords` (case-insensitive) | `{base}/{paths.product_team}/` |
+| 5 | **Default** | No match | `{base}/{paths.inbox}/` (directly in Meetings folder; no source-named or other subfolder) |
+
+**Leader customer inbox** (`config.leader_customer_inbox`): Use when a leader is involved but the meeting is about a **customer or account**, not a standing leader 1:1 (e.g. `LeaderName_YourName` with no account in the title).
+
+Route to **Inbox** when **both** are true:
+
+1. A leader is matched (title or attendees).
+2. **Customer/account signal** — title (case-insensitive) contains **any** of:
+   - A string from `leader_customer_inbox.account_names`, **or**
+   - A string from `leader_customer_inbox.title_keywords` (e.g. `alignment`, `account`) **and** a **1:1-style** signal: any of `one_on_one_title_keywords` or `one_on_one_title_patterns`.
+
+Examples → **Inbox**: account name in the title plus a leader. Examples → **Leaders/{folder}**: a leader 1:1 with no account in the title. Edit account names and keywords in `routing.json` as your portfolio changes.
+
+3. **Resolve save path:** `config.paths.base` + `/` + the bucket path from the table, using the correct **folder name** for the last segment. For **1:1 with direct**, set **folder** = `config.direct_folders[resolved_person]` when that key exists, else **resolved_person**. For **Leader** matches, set **folder** = `config.leader_folders[resolved_person]` when that key exists, else **resolved_person**. For other buckets, use inbox/product paths as defined. Create the meeting file in that folder (same filename and content format as below).
+
+## Execution Steps
+
+### 1. Find New Meetings
+
+Use the active adapter's list step (Glean: `search` with `retrieval.list_query` over the last `retrieval.list_window_days` days. Granola: `list_meetings` with `time_range: "this_week"`).
+
+### 2. Check Tracking File
+
+Read the tracking file at `phenom-personal-copilot/99_System/meetings/backup_tracking.json`.
+
+This file contains `backed_up_meeting_ids` — skip any meeting ID already in this list. If the file does not exist, create it on first sync.
+
+### 3. Get Meeting Content
+
+For each NEW meeting (not in tracking file), using the active adapter:
+
+1. Fetch the meeting's metadata (title, attendees, date) and its **generated summary** (Glean: `read_document`. Granola: `get_meetings`, batching ids 10 at a time).
+2. Fetch the **full verbatim transcript** (Glean: the same `read_document` result, per `retrieval.transcript_via`. Granola: one `get_meeting_transcript` call per meeting).
+3. Map both onto the normalised meeting via `field_map`.
+4. Run the **Routing** logic above to get the save path for this meeting.
+5. Create the file using both the summary and the full transcript. If no transcript content comes back, still create the file and add "*Full transcript not available.*" under the Full Transcript section.
+
+### 4. Create Meeting Files
+
+For each meeting, create the markdown file **in the path returned by Routing** with this structure:
+
+```markdown
+# [Meeting Title]
+
+**Meeting ID:** [id]
+**Date:** [YYYY-MM-DD HH:MM]
+**Type:** meeting
+**Participants:** list participants
+
+---
+
+## Meeting Notes
+
+[Generated summary — preserve structure and formatting]
+
+---
+
+## Full Transcript
+
+[Verbatim transcript — include full content. If unavailable, add: *Full transcript not available.*]
+
+---
+
+**Chat with meeting transcript:** [link if available]
+
+*Synced from [source] on [today's date]*
+```
+
+`[source]` is the `active_source` — "Glean" today. Historical files say "Granola" and stay as they are; they are accurate records of where that note came from.
+
+### 5. Update Tracking File
+
+After creating all files, update the tracking file at `99_System/meetings/backup_tracking.json`:
+- Add all new meeting IDs to `backed_up_meeting_ids` array
+- Update `last_updated` timestamp to current datetime
+
+IDs from different sources coexist in this list. That is fine — it is a set of "already filed", not a Granola artefact.
+
+### 6. Archive Old Untriaged Files (Inbox only)
+
+After updating the tracking file, move any meeting files **still in the Inbox** that are older than 5 days to Archive:
+
+- **Scope:** Only `.md` files directly in the Inbox folder (`{base}/{paths.inbox}/`). Exclude `README.md`.
+- **Age:** Use the date from the filename when it matches `YYYY-MM-DD_HHMM_*.md`; otherwise use the file's modification date. If that date is more than **5 days** before today, the file is considered old.
+- **Action:** Move each such file to `{base}/{paths.archive}/` (keep the same filename).
+- Only files that were **not** triaged to People or Product Team remain in Inbox; those are the only candidates for archive. Triaged files are never in Inbox, so they are never moved to Archive by this step.
+
+### 7. Report Summary
+
+After completion, provide a summary table showing:
+- Date
+- Meeting name
+- File created (filename)
+- Folder (e.g. `00_Inbox/Meetings`, `05_Areas/People/Team/Jaydeep`, `05_Areas/People/Leaders/Venkata Gonella Rama`, `05_Areas/Product Team/Meetings`)
+
+If any files were moved to Archive in step 6, list them (e.g. "Archived to {paths.archive}: file1.md, file2.md").
+
+## Important Notes
+
+- **Duplicate prevention:** The tracking file prevents re-importing meetings, even if the file was moved or deleted. It depends entirely on `field_map.id` being stable across syncs — which is unverified for Glean and is the first thing to check.
+- **Inbox is flat:** Unrouted meetings are saved **directly** in `00_Inbox/Meetings/` — no "Glean", "Granola" or other subfolder. Only recently synced meetings (last 5 days) that did not match any triage rule land here.
+- **Auto-triage:** 1:1s with directs → `05_Areas/People/Team/{Name}/`. Leader **customer/account** 1:1s (e.g. `Capgemini - Alignment w. Kumar`) → **Inbox** per `leader_customer_inbox`. Other leader meetings → `05_Areas/People/Leaders/{folder}/`. Product team meetings (WBR, Scrum, etc.) → `05_Areas/Product Team/Meetings/`.
+- **Archive:** Only untriaged meetings that stayed in Inbox and are older than 5 days are moved to the archive path from config.
+- **Config:** Edit `99_System/meetings/routing.json` to add/remove names in `directs` or `leaders`, optional `leader_folders`, `leader_customer_inbox.account_names` / `title_keywords` / one-on-one patterns, keywords in `product_team.title_keywords`, or paths in `paths`. Put **longer leader strings before shorter ones** in `leaders` to avoid false substring matches. Edit `99_System/meetings/sources.json` to change capture tool. Tracking: `99_System/meetings/backup_tracking.json`.
+- **Preserve formatting:** Keep bullet points, headers, and structure from the source's notes.
+- **Full transcript:** Always include a **Full Transcript** section so the file contains the verbatim transcript, not only the summary.
+- **Include transcript links:** If the meeting has a permalink, include it at the bottom.
+
+## Error Handling
+
+- **Nothing came back.** Widen the window (Granola: `time_range: "last_30_days"`). Then check the server name against `sources.json` for the harness you are in — Cursor and Claude Code name the same server differently and hold separate auth. Then check whether the value you used is in the adapter's `unconfirmed` list, and if it is, say so rather than guessing alternatives.
+- **The search returned documents that are not meeting notes** (Glean). `retrieval.list_query` is wrong. Report it and stop; do not file unrelated documents as meetings.
+- **No transcript for a meeting.** Still create the file with metadata and summary; use "*Full transcript not available.*".
+- **Tracking file missing.** Create it fresh.
+- **Routing config missing.** Save all meetings to Inbox (flat).
+- **Never report a clean sync that fetched nothing.** A silent empty run is how this pipeline died for 65 days in 2026.
+
+---
+**Last Updated**: 2026-09-13 — migrated from Granola to Glean; capture source is now an adapter in `99_System/meetings/sources.json`
+
+## Friction
+
+If anything in this run was clumsy — a wrong assumption, a step skipped, a question already answered, context that should have been in `99_System/context/` but was not — append it to `99_System/improvement/friction-log.md` in that file's format. Do not ask permission, do not announce it. The weekly self-improvement loop reads it.
